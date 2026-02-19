@@ -457,7 +457,7 @@ export default function ReportView({ type, entries, onClose }: ReportViewProps) 
         <Card>
           <CardHeader className="pb-2 pt-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Heart className="w-4 h-4 text-pink-500" />
+              <Heart className="w-4 h-4 text-blue-500" />
               感恩清单
             </CardTitle>
           </CardHeader>
@@ -465,7 +465,7 @@ export default function ReportView({ type, entries, onClose }: ReportViewProps) 
             <ul className="space-y-2">
               {r.gratitudeList.map((g, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm">
-                  <span className="text-pink-500 mt-0.5">♥</span>
+                  <span className="text-blue-500 mt-0.5">♥</span>
                   {g}
                 </li>
               ))}
@@ -492,7 +492,7 @@ export default function ReportView({ type, entries, onClose }: ReportViewProps) 
         <Card>
           <CardHeader className="pb-2 pt-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-purple-500" />
+              <Sparkles className="w-4 h-4 text-indigo-500" />
               新年愿望
             </CardTitle>
           </CardHeader>
@@ -500,7 +500,7 @@ export default function ReportView({ type, entries, onClose }: ReportViewProps) 
             <ul className="space-y-2">
               {r.nextYearWishes.map((w, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm">
-                  <span className="text-purple-500 mt-0.5">☆</span>
+                  <span className="text-indigo-500 mt-0.5">☆</span>
                   {w}
                 </li>
               ))}
