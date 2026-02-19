@@ -18,7 +18,11 @@ import { storage } from '@/lib/storage';
 import { format, isToday, isYesterday, subDays, startOfWeek, endOfWeek, eachDayOfInterval, getMonth, getYear } from 'date-fns';
 import ReportView from '@/components/ReportView';
 
-export default function ReviewView() {
+interface ReviewViewProps {
+  onSelectDateForChat?: (date: string) => void;
+}
+
+export default function ReviewView({ onSelectDateForChat }: ReviewViewProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -477,36 +481,30 @@ export default function ReviewView() {
                   }}
                 />
                 
-                {/* 选中日期的日记 */}
-                {selectedEntry && (
-                  <div className="w-full mt-2 p-3 bg-muted/50 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-muted-foreground">
-                        {formatDateLabel(selectedEntry.date)}
-                      </span>
-                      {selectedEntry.classification && (
-                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${getEmotionBgColor(selectedEntry.classification.emotionScore)}`}>
-                          <Smile className="w-3 h-3" />
-                          <span>{selectedEntry.classification.emotionScore}/10</span>
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-sm text-foreground line-clamp-3">
-                      {selectedEntry.summary || selectedEntry.content}
-                    </p>
-                    {selectedEntry.classification && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {selectedEntry.classification.emotionTags.slice(0, 3).map(tag => (
-                          <Badge key={tag} variant="secondary" className="text-xs py-0">
-                            {tag}
-                          </Badge>
-                        ))}
-                        {selectedEntry.classification.domains.slice(0, 2).map(tag => (
-                          <Badge key={tag} variant="outline" className="text-xs py-0">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
+                {/* 选中日期的操作 */}
+                {selectedDate && (
+                  <div className="w-full mt-2 flex gap-2">
+                    {selectedEntry ? (
+                      <Button 
+                        variant="outline" 
+                        className="flex-1 text-xs"
+                        onClick={() => {
+                          const dateStr = format(selectedDate, 'yyyy-MM-dd');
+                          onSelectDateForChat?.(dateStr);
+                        }}
+                      >
+                        编辑日记
+                      </Button>
+                    ) : (
+                      <Button 
+                        className="flex-1 text-xs"
+                        onClick={() => {
+                          const dateStr = format(selectedDate, 'yyyy-MM-dd');
+                          onSelectDateForChat?.(dateStr);
+                        }}
+                      >
+                        补记这一天
+                      </Button>
                     )}
                   </div>
                 )}

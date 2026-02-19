@@ -12,6 +12,7 @@ export default function Home() {
   const [isUnlocked, setIsUnlocked] = useState(true);  // 调试模式：跳过密码
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const [key, setKey] = useState(0); // 用于强制重新渲染
+  const [selectedDateForChat, setSelectedDateForChat] = useState<string | null>(null);
 
   const handleUnlock = useCallback(() => {
     setIsUnlocked(true);
@@ -26,13 +27,18 @@ export default function Home() {
     setKey(prev => prev + 1);
   }, []);
 
+  const handleSelectDateForChat = useCallback((date: string) => {
+    setSelectedDateForChat(date);
+    setActiveTab('chat');
+  }, []);
+
   // 渲染当前选中的页面
   const renderContent = () => {
     switch (activeTab) {
       case 'chat':
-        return <ChatView />;
+        return <ChatView key={selectedDateForChat || 'today'} specifiedDate={selectedDateForChat} onDateChange={setSelectedDateForChat} />;
       case 'review':
-        return <ReviewView />;
+        return <ReviewView onSelectDateForChat={handleSelectDateForChat} />;
       case 'settings':
         return <SettingsView onResetPassword={handleResetPassword} />;
       default:

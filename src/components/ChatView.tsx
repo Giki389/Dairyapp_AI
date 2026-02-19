@@ -1,22 +1,28 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, Mic, MicOff, Save, Sparkles, Loader2 } from 'lucide-react';
+import { Send, Mic, MicOff, Save, Sparkles, Loader2, ArrowLeft, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ChatMessage, Classification, DiaryEntry } from '@/types';
 import { storage } from '@/lib/storage';
+import { format } from 'date-fns';
 
-export default function ChatView() {
+interface ChatViewProps {
+  specifiedDate?: string | null;
+  onDateChange?: (date: string | null) => void;
+}
+
+export default function ChatView({ specifiedDate, onDateChange }: ChatViewProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [classification, setClassification] = useState<Classification | null>(null);
   const [showSaveCard, setShowSaveCard] = useState(false);
-  const [todayEntry, setTodayEntry] = useState<DiaryEntry | null>(null);
+  const [entry, setEntry] = useState<DiaryEntry | null>(null);
   const [currentDate, setCurrentDate] = useState('');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -24,46 +30,61 @@ export default function ChatView() {
   const audioChunksRef = useRef<Blob[]>([]);
 
   const today = storage.getTodayDateString();
+  const activeDate = specifiedDate || today;
+  const isViewingPastDate = specifiedDate && specifiedDate !== today;
 
-  // 设置当前日期（客户端）
+  // 设置头部显示的日期
   useEffect(() => {
     const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-    const now = new Date();
-    setCurrentDate(`${now.getMonth() + 1}月${now.getDate()}日 ${weekDays[now.getDay()]}`);
-  }, []);
+    if (specifiedDate) {
+      const date = new Date(specifiedDate);
+      setCurrentDate(`${date.getMonth() + 1}月${date.getDate()}日 ${weekDays[date.getDay()]}`);
+    } else {
+      const now = new Date();
+      setCurrentDate(`${now.getMonth() + 1}月${now.getDate()}日 ${weekDays[now.getDay()]}`);
+    }
+  }, [specifiedDate]);
 
-  // 加载今天的对话历史
+  // 加载指定日期的对话和日记
   useEffect(() => {
-    const loadTodayChat = async () => {
-      const savedMessages = await storage.getChatMessages(today);
+    const loadChat = async () => {
+      const savedMessages = await storage.getChatMessages(activeDate);
       if (savedMessages && savedMessages.length > 0) {
         setMessages(savedMessages);
       } else {
-        // 添加欢迎消息
-        const hour = new Date().getHours();
-        let greeting = hour < 6 ? '夜深了，还没休息吗？' 
-                    : hour < 12 ? '早上好！'
-                    : hour < 14 ? '中午好！'
-                    : hour < 18 ? '下午好！' 
-                    : '晚上好！';
+        // 根据是否查看过去日期显示不同的欢迎消息
+        let greeting: string;
+        if (isViewingPastDate) {
+          greeting = `📅 你正在回顾 ${currentDate} 的日记\n\n可以继续补充当天的记录，或者重新记录~`;
+        } else {
+          const hour = new Date().getHours();
+          greeting = hour < 6 ? '夜深了，还没休息吗？' 
+                      : hour < 12 ? '早上好！'
+                      : hour < 14 ? '中午好！'
+                      : hour < 18 ? '下午好！' 
+                      : '晚上好！';
+          greeting += '\n\n想记录点什么吗？可以直接和我说，也可以点麦克风语音输入~';
+        }
         
         const welcomeMessage: ChatMessage = {
           id: `msg_${Date.now()}`,
           role: 'assistant',
-          content: `${greeting} 🌟\n\n想记录点什么吗？可以直接和我说，也可以点麦克风语音输入~`,
+          content: `${greeting} 🌟`,
           timestamp: new Date().toISOString()
         };
         setMessages([welcomeMessage]);
       }
       
-      // 检查今天是否已有日记
-      const entry = await storage.getDiaryEntryByDate(today);
-      if (entry) {
-        setTodayEntry(entry);
+      // 检查指定日期是否已有日记
+      const existingEntry = await storage.getDiaryEntryByDate(activeDate);
+      if (existingEntry) {
+        setEntry(existingEntry);
+      } else {
+        setEntry(null);
       }
     };
-    loadTodayChat();
-  }, [today]);
+    loadChat();
+  }, [activeDate, isViewingPastDate, currentDate]);
 
   // 滚动到底部
   useEffect(() => {
@@ -110,7 +131,7 @@ export default function ChatView() {
       const updatedMessages = [...newMessages, assistantMessage];
       setMessages(updatedMessages);
       
-      await storage.saveChatMessages(today, updatedMessages);
+      await storage.saveChatMessages(activeDate, updatedMessages);
 
       // 检查是否可以整理日记了
       if (data.content.includes('整理今天的日记') || data.content.includes('帮你整理')) {
@@ -182,32 +203,35 @@ export default function ChatView() {
       .map(m => m.content)
       .join('\n');
 
-    const entry: DiaryEntry = {
-      id: todayEntry?.id || `diary_${today}`,
-      date: today,
+    const existingEntry = entry;
+    const newEntry: DiaryEntry = {
+      id: existingEntry?.id || `diary_${activeDate}`,
+      date: activeDate,
       content: userMessages,
-      summary: classification?.summary || '今天的日记',
+      summary: classification?.summary || '日记记录',
       classification: classification || undefined,
       conversation: messages,
-      createdAt: todayEntry?.createdAt || new Date().toISOString(),
+      createdAt: existingEntry?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
     try {
-      await storage.saveDiaryEntry(entry);
-      setTodayEntry(entry);
+      await storage.saveDiaryEntry(newEntry);
+      setEntry(newEntry);
       setShowSaveCard(false);
       
       const successMessage: ChatMessage = {
         id: `msg_${Date.now()}`,
         role: 'assistant',
-        content: '✅ 日记已保存！\n\n你可以在"回顾"页面查看今天的记录。明天见~ 🌙',
+        content: isViewingPastDate 
+          ? '✅ 日记已更新！\n\n你可以在"回顾"页面查看所有记录。' 
+          : '✅ 日记已保存！\n\n你可以在"回顾"页面查看今天的记录。明天见~ 🌙',
         timestamp: new Date().toISOString()
       };
       
       const updatedMessages = [...messages, successMessage];
       setMessages(updatedMessages);
-      await storage.saveChatMessages(today, updatedMessages);
+      await storage.saveChatMessages(activeDate, updatedMessages);
     } catch (error) {
       console.error('Save diary error:', error);
       alert('保存失败，请重试');
@@ -303,9 +327,21 @@ export default function ChatView() {
       {/* 日期头部 */}
       <div className="px-4 py-3 border-b border-border bg-background/95 backdrop-blur">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-foreground">{currentDate || '加载中...'}</p>
-            {todayEntry && <p className="text-xs text-muted-foreground mt-0.5">✅ 今天已记录</p>}
+          <div className="flex items-center gap-2">
+            {isViewingPastDate && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={() => onDateChange?.(null)}
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+            )}
+            <div>
+              <p className="text-sm font-medium text-foreground">{currentDate || '加载中...'}</p>
+              {entry && <p className="text-xs text-muted-foreground mt-0.5">✅ {isViewingPastDate ? '已记录' : '今天已记录'}</p>}
+            </div>
           </div>
           {messages.length > 2 && !showSaveCard && (
             <Button variant="outline" size="sm" onClick={() => { setShowSaveCard(true); classifyConversation(messages); }}>
