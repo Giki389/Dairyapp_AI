@@ -6,9 +6,9 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type');
   const date = searchParams.get('date');
   const id = searchParams.get('id');
-  const startDate = searchParams.get('startDate');
-  const endDate = searchParams.get('endDate');
   const days = searchParams.get('days');
+  const reportType = searchParams.get('reportType');
+  const year = searchParams.get('year');
 
   try {
     switch (type) {
@@ -99,6 +99,56 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(stats);
       }
 
+      case 'reports': {
+        const reports = await db.report.findMany({
+          orderBy: [
+            { year: 'desc' },
+            { month: 'desc' },
+            { weekNumber: 'desc' },
+          ],
+        });
+
+        return NextResponse.json(
+          reports.map((r) => ({
+            ...r,
+            data: JSON.parse(r.data),
+          }))
+        );
+      }
+
+      case 'report': {
+        if (!reportType || !year) {
+          return NextResponse.json({ error: 'reportType and year are required' }, { status: 400 });
+        }
+
+        const yearNum = parseInt(year);
+        const weekNumber = searchParams.get('weekNumber');
+        const month = searchParams.get('month');
+
+        let whereClause: any = {
+          type: reportType,
+          year: yearNum,
+        };
+
+        if (reportType === 'weekly' && weekNumber) {
+          whereClause.weekNumber = parseInt(weekNumber);
+        } else if (reportType === 'monthly' && month) {
+          whereClause.month = parseInt(month);
+        }
+
+        const report = await db.report.findFirst({
+          where: whereClause,
+        });
+
+        if (report) {
+          return NextResponse.json({
+            ...report,
+            data: JSON.parse(report.data),
+          });
+        }
+        return NextResponse.json(null);
+      }
+
       default:
         return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
     }
@@ -180,6 +230,41 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(JSON.parse(chat.messages));
       }
 
+      case 'report': {
+        const { reportType, year, weekNumber, month, data } = body;
+
+        const whereClause: any = {
+          type: reportType,
+          year,
+        };
+
+        if (reportType === 'weekly') {
+          whereClause.weekNumber = weekNumber;
+        } else if (reportType === 'monthly') {
+          whereClause.month = month;
+        }
+
+        const report = await db.report.upsert({
+          where: { id: `${reportType}_${year}_${weekNumber || month || ''}` },
+          update: {
+            data: JSON.stringify(data),
+          },
+          create: {
+            id: `${reportType}_${year}_${weekNumber || month || ''}`,
+            type: reportType,
+            year,
+            weekNumber: weekNumber || null,
+            month: month || null,
+            data: JSON.stringify(data),
+          },
+        });
+
+        return NextResponse.json({
+          ...report,
+          data: JSON.parse(report.data),
+        });
+      }
+
       default:
         return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
     }
@@ -213,6 +298,16 @@ export async function DELETE(request: NextRequest) {
         }
         await db.chatMessages.delete({
           where: { date },
+        });
+        return NextResponse.json({ success: true });
+      }
+
+      case 'report': {
+        if (!id) {
+          return NextResponse.json({ error: 'id is required' }, { status: 400 });
+        }
+        await db.report.delete({
+          where: { id },
         });
         return NextResponse.json({ success: true });
       }

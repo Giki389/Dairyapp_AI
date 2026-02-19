@@ -3,9 +3,20 @@
  * 通过 REST API 调用后端 SQLite 数据库
  */
 
-import { AppSettings, DiaryEntry, ChatMessage } from '@/types';
+import { AppSettings, DiaryEntry, ChatMessage, WeeklyReport, MonthlyReport, YearlyReport } from '@/types';
 
 const API_BASE = '/api/storage';
+
+interface ReportData {
+  id: string;
+  type: string;
+  year: number;
+  weekNumber?: number;
+  month?: number;
+  data: WeeklyReport | MonthlyReport | YearlyReport;
+  createdAt: string;
+  updatedAt: string;
+}
 
 class StorageService {
   private async request<T>(
@@ -100,6 +111,21 @@ class StorageService {
 
   async getEmotionStats(days: number = 7): Promise<{ date: string; score: number }[]> {
     return this.request<{ date: string; score: number }[]>('GET', 'emotion_stats', { days: days.toString() });
+  }
+
+  async getAllReports(): Promise<ReportData[]> {
+    return this.request<ReportData[]>('GET', 'reports');
+  }
+
+  async getReport(reportType: string, year: number, weekNumber?: number, month?: number): Promise<ReportData | null> {
+    const params: Record<string, string> = { reportType, year: year.toString() };
+    if (weekNumber) params.weekNumber = weekNumber.toString();
+    if (month) params.month = month.toString();
+    return this.request<ReportData | null>('GET', 'report', params);
+  }
+
+  async saveReport(reportType: string, year: number, data: WeeklyReport | MonthlyReport | YearlyReport, weekNumber?: number, month?: number): Promise<void> {
+    await this.request<ReportData>('POST', 'report', {}, { reportType, year, weekNumber, month, data });
   }
 }
 

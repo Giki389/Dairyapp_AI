@@ -33,3 +33,17 @@ model ChatMessages {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model Report {
+  id        String   @id
+  type      String   // weekly, monthly, yearly
+  year      Int
+  weekNumber Int?    // for weekly
+  month     Int?     // for monthly
+  data      String   // JSON string of report data
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([type, year, weekNumber])
+  @@unique([type, year, month])
+}

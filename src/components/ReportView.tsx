@@ -1,16 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   FileText, Calendar, TrendingUp, Target, Lightbulb, 
   ChevronRight, Sparkles, BarChart3, Heart, Star,
-  X, Download, Share2, Loader2
+  X, Download, Share2, Loader2, Save, History
 } from 'lucide-react';
 import { getISOWeek } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { WeeklyReport, MonthlyReport, YearlyReport, DiaryEntry } from '@/types';
+import { storage } from '@/lib/storage';
+
+interface ReportData {
+  id: string;
+  type: string;
+  year: number;
+  weekNumber?: number;
+  month?: number;
+  data: WeeklyReport | MonthlyReport | YearlyReport;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface ReportViewProps {
   type: 'weekly' | 'monthly' | 'yearly';
@@ -22,6 +36,10 @@ export default function ReportView({ type, entries, onClose }: ReportViewProps) 
   const [report, setReport] = useState<WeeklyReport | MonthlyReport | YearlyReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyReports, setHistoryReports] = useState<ReportData[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
   const generateReport = async () => {
     setIsLoading(true);
@@ -57,6 +75,47 @@ export default function ReportView({ type, entries, onClose }: ReportViewProps) 
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // 保存报告
+  const handleSaveReport = async () => {
+    if (!report) return;
+    
+    setIsSaving(true);
+    try {
+      const now = new Date();
+      const year = now.getFullYear();
+      const weekNumber = getWeekNumber(now);
+      const month = now.getMonth() + 1;
+      
+      await storage.saveReport(type, year, report, weekNumber, month);
+      
+      setSavedMessage('报告已保存！');
+      setTimeout(() => setSavedMessage(null), 3000);
+    } catch (err) {
+      console.error('Save report error:', err);
+      alert('保存失败，请重试');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 加载历史报告
+  const loadHistoryReports = async () => {
+    setShowHistory(true);
+    try {
+      const reports = await storage.getAllReports();
+      const filteredReports = reports.filter(r => r.type === type);
+      setHistoryReports(filteredReports);
+    } catch (err) {
+      console.error('Load history error:', err);
+    }
+  };
+
+  // 查看历史报告
+  const viewHistoryReport = (reportData: ReportData) => {
+    setReport(reportData.data as WeeklyReport | MonthlyReport | YearlyReport);
+    setShowHistory(false);
   };
 
   // 获取周数
@@ -564,16 +623,72 @@ export default function ReportView({ type, entries, onClose }: ReportViewProps) 
             {report.type === 'monthly' && renderMonthlyReport(report as MonthlyReport)}
             {report.type === 'yearly' && renderYearlyReport(report as YearlyReport)}
             
-            {/* 重新生成 */}
-            <div className="mt-4 flex justify-center">
+            {/* 保存报告 */}
+            <div className="mt-4 flex justify-center gap-2">
               <Button variant="outline" size="sm" onClick={generateReport}>
                 <Sparkles className="w-4 h-4 mr-2" />
                 重新生成
               </Button>
+              <Button size="sm" onClick={handleSaveReport} disabled={isSaving}>
+                <Save className="w-4 h-4 mr-2" />
+                {isSaving ? '保存中...' : '保存报告'}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={loadHistoryReports}>
+                <History className="w-4 h-4 mr-2" />
+                历史报告
+              </Button>
             </div>
+            {savedMessage && (
+              <p className="text-center text-green-600 text-sm mt-2">{savedMessage}</p>
+            )}
           </>
         )}
       </div>
+
+      {/* 历史报告面板 */}
+      {showHistory && (
+        <div className="fixed inset-0 bg-background/95 z-60 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <Button variant="ghost" size="icon" onClick={() => setShowHistory(false)}>
+              <ChevronRight className="w-5 h-5 rotate-180" />
+            </Button>
+            <h2 className="font-semibold">历史报告</h2>
+            <div className="w-9" />
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            {historyReports.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                <History className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                <p>暂无保存的报告</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {historyReports.map((r) => (
+                  <Card 
+                    key={r.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => viewHistoryReport(r)}
+                  >
+                    <CardContent className="py-3 px-4 flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">
+                          {r.type === 'weekly' && `第${r.weekNumber}周周报`}
+                          {r.type === 'monthly' && `${r.month}月月报`}
+                          {r.type === 'yearly' && `${r.year}年度报告`}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(r.createdAt).toLocaleDateString('zh-CN')}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
