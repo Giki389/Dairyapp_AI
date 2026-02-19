@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { 
   TrendingUp, Calendar as CalendarIcon, BookOpen, Smile, 
   Search, Filter, Clock, X, ChevronDown, ChevronUp,
-  FileText, BarChart2, Sparkles
+  FileText, BarChart2, Sparkles, ChevronRight
 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { zhCN } from 'date-fns/locale/zh-CN';
@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DiaryEntry, EMOTION_TAGS, DOMAIN_TAGS, ReportType } from '@/types';
+import { DiaryEntry, EMOTION_TAGS, DOMAIN_TAGS, ReportType, WeeklyReport, MonthlyReport, YearlyReport } from '@/types';
 import { storage } from '@/lib/storage';
 import { format, isToday, isYesterday, subDays, startOfWeek, endOfWeek, eachDayOfInterval, getMonth, getYear } from 'date-fns';
 import ReportView from '@/components/ReportView';
@@ -40,6 +40,10 @@ export default function ReviewView({ onSelectDateForChat }: ReviewViewProps) {
   
   // 报告视图
   const [showReport, setShowReport] = useState<ReportType | null>(null);
+  
+  // 历史报告数据
+  const [reports, setReports] = useState<any[]>([]);
+  const [isLoadingReports, setIsLoadingReports] = useState(false);
 
   // 加载数据
   useEffect(() => {
@@ -47,6 +51,10 @@ export default function ReviewView({ onSelectDateForChat }: ReviewViewProps) {
       try {
         const allEntries = await storage.getAllDiaryEntries();
         setEntries(allEntries.sort((a, b) => b.date.localeCompare(a.date)));
+        
+        // 加载历史报告
+        const allReports = await storage.getAllReports();
+        setReports(allReports);
       } catch (error) {
         console.error('Failed to load data:', error);
       } finally {
@@ -510,6 +518,66 @@ export default function ReviewView({ onSelectDateForChat }: ReviewViewProps) {
                 )}
               </CardContent>
             </Card>
+
+            {/* 历史报告列表 */}
+            {reports.length > 0 && (
+              <Card className="mx-4 mt-4">
+                <CardHeader className="pb-2 pt-3">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <FileText className="w-4 h-4 text-primary" />
+                    历史报告
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {/* 按年份分组 */}
+                  {Array.from(new Set(reports.map(r => r.year))).sort((a, b) => b - a).map(year => (
+                    <div key={year}>
+                      <p className="text-xs font-medium text-muted-foreground mb-2">{year}年</p>
+                      <div className="space-y-1">
+                        {/* 周报 */}
+                        {reports.filter(r => r.type === 'weekly' && r.year === year)
+                          .sort((a, b) => (b.weekNumber || 0) - (a.weekNumber || 0))
+                          .slice(0, 4)
+                          .map(r => (
+                            <button
+                              key={r.id}
+                              className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 text-left"
+                              onClick={() => {
+                                // 直接查看报告
+                                setShowReport('weekly');
+                              }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <BarChart2 className="w-4 h-4 text-primary" />
+                                <span className="text-sm">第{r.weekNumber}周周报</span>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                          ))}
+                        {/* 月报 */}
+                        {reports.filter(r => r.type === 'monthly' && r.year === year)
+                          .sort((a, b) => (b.month || 0) - (a.month || 0))
+                          .map(r => (
+                            <button
+                              key={r.id}
+                              className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 text-left"
+                              onClick={() => {
+                                setShowReport('monthly');
+                              }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <TrendingUp className="w-4 h-4 text-primary" />
+                                <span className="text-sm">{r.month}月月报</span>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
 
             {/* 统计卡片 */}
             {entries.length > 0 && (
