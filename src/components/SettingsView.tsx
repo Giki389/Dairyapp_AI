@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import {
   Lock,
   Fingerprint,
   Sparkles,
-  Download,
-  Trash2,
   ChevronRight,
   Moon,
   Bell,
@@ -28,18 +27,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { storage } from '@/lib/storage';
 import { hashPassword, verifyPassword } from '@/lib/crypto';
-import { AppSettings } from '@/types';
 
 interface SettingsViewProps {
   onResetPassword?: () => void;
 }
 
 export default function SettingsView({ onResetPassword }: SettingsViewProps) {
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [showResetDialog, setShowResetDialog] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -55,6 +53,16 @@ export default function SettingsView({ onResetPassword }: SettingsViewProps) {
     };
     loadSettings();
   }, []);
+
+  // 同步深色模式状态
+  useEffect(() => {
+    setDarkModeEnabled(resolvedTheme === 'dark');
+  }, [resolvedTheme]);
+
+  const handleDarkModeToggle = (enabled: boolean) => {
+    setDarkModeEnabled(enabled);
+    setTheme(enabled ? 'dark' : 'light');
+  };
 
   const handleBiometricToggle = async (enabled: boolean) => {
     setBiometricEnabled(enabled);
@@ -104,27 +112,6 @@ export default function SettingsView({ onResetPassword }: SettingsViewProps) {
       setNewPassword('');
       setConfirmPassword('');
       alert('密码修改成功！');
-    }
-  };
-
-  const handleExportData = () => {
-    alert('数据导出功能将在后续版本中推出');
-  };
-
-  const handleClearData = () => {
-    setShowResetDialog(true);
-  };
-
-  const confirmClearData = async () => {
-    // 清除所有数据
-    indexedDB.deleteDatabase('DiaryAppDB');
-    setShowResetDialog(false);
-    alert('数据已清除，应用将重新启动');
-    // 调用密码重置回调
-    if (onResetPassword) {
-      onResetPassword();
-    } else {
-      window.location.reload();
     }
   };
 
@@ -212,7 +199,7 @@ export default function SettingsView({ onResetPassword }: SettingsViewProps) {
             </div>
             <Switch
               checked={darkModeEnabled}
-              onCheckedChange={setDarkModeEnabled}
+              onCheckedChange={handleDarkModeToggle}
             />
           </div>
 
@@ -228,38 +215,6 @@ export default function SettingsView({ onResetPassword }: SettingsViewProps) {
               onCheckedChange={setNotificationsEnabled}
             />
           </div>
-        </CardContent>
-      </Card>
-
-      {/* 数据管理 */}
-      <Card className="mx-4 mb-4">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">数据管理</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1">
-          <button
-            className="flex items-center justify-between w-full py-3 hover:bg-muted/50 px-2 -mx-2 rounded-lg transition-colors"
-            onClick={handleExportData}
-          >
-            <div className="flex items-center gap-3">
-              <Download className="w-5 h-5 text-muted-foreground" />
-              <span className="text-foreground">导出数据</span>
-            </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
-          </button>
-
-          <Separator className="my-1" />
-
-          <button
-            className="flex items-center justify-between w-full py-3 hover:bg-destructive/10 px-2 -mx-2 rounded-lg transition-colors text-destructive"
-            onClick={handleClearData}
-          >
-            <div className="flex items-center gap-3">
-              <Trash2 className="w-5 h-5" />
-              <span>清除所有数据</span>
-            </div>
-            <ChevronRight className="w-5 h-5" />
-          </button>
         </CardContent>
       </Card>
 
@@ -327,29 +282,6 @@ export default function SettingsView({ onResetPassword }: SettingsViewProps) {
               取消
             </Button>
             <Button onClick={handleChangePassword}>确认</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 清除数据确认对话框 */}
-      <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>确认清除数据</DialogTitle>
-            <DialogDescription>
-              此操作将删除所有日记数据和设置，包括密码。此操作不可撤销。
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowResetDialog(false)}
-            >
-              取消
-            </Button>
-            <Button variant="destructive" onClick={confirmClearData}>
-              确认清除
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

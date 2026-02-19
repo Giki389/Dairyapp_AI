@@ -10,8 +10,10 @@
 - 😊 **情绪评分** - 自动分析情绪分数
 - 📊 **情绪趋势** - 可视化情绪变化
 - 📅 **日历视图** - 按日期查看日记
-- 📈 **时间线** - 时间线浏览历史
+- � **补记日记** - 支持补记过往日期的日记
+- �📈 **时间线** - 时间线浏览历史
 - 📋 **AI 报告** - 周报/月报/年报自动生成
+- 🌓 **深色模式** - 支持深色/浅色主题切换
 
 ## 运行要求
 
@@ -45,7 +47,19 @@ cp .z-ai-config.example .z-ai-config
 
 **注意：** 密钥值必须用双引号包裹！
 
-### 3. 启动
+### 3. 配置数据库
+
+本地开发使用 SQLite 数据库（默认配置）：
+
+```bash
+# 生成 Prisma 客户端
+npx prisma generate
+
+# 创建数据库
+npx prisma db push
+```
+
+### 4. 启动
 
 ```bash
 npm run dev
@@ -53,21 +67,38 @@ npm run dev
 bun run dev
 ```
 
-### 4. 访问
+### 5. 访问
 
 打开浏览器访问 http://localhost:3000
 
-## 添加到 iPhone 主屏幕
-
-1. 用 Safari 打开 http://localhost:3000
-2. 点击底部分享按钮
-3. 选择「添加到主屏幕」
-4. 像原生 App 一样使用
-
 ## 数据存储
 
-- 所有数据存储在浏览器 IndexedDB 中
-- 数据完全本地化，隐私安全
+- **本地开发**：SQLite 数据库位于 `prisma/dev.db`
+- **NAS 部署**：数据库文件存储在你指定的 NAS 路径
+
+### NAS 部署配置
+
+部署到 NAS 时，修改 `.env` 文件中的数据库路径：
+
+```env
+DATABASE_URL="file:/你的NAS路径/diary.db"
+```
+
+然后运行：
+
+```bash
+npx prisma generate
+npx prisma db push
+```
+
+数据文件位置请参考 `DEPLOYMENT.md` 部署文档。
+
+### 备份数据
+
+由于日记数据存储在 SQLite 文件中，你可以直接复制数据库文件进行备份：
+
+- 本地开发：`prisma/dev.db`
+- NAS 部署：你配置的数据库路径
 
 ## 调试模式
 
@@ -77,3 +108,7 @@ bun run dev
 // 将 true 改回 false
 const [isUnlocked, setIsUnlocked] = useState(false);
 ```
+
+## 部署
+
+详细部署指南请参考 [DEPLOYMENT.md](./DEPLOYMENT.md)
