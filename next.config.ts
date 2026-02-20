@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
   reactStrictMode: false,
-  assetPrefix: '/',
+  turbopack: {
+    root: process.cwd(),
+  },
 };
 
 export default nextConfig;
