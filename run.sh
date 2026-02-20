@@ -1,7 +1,7 @@
-cd /app/diary-app
+cd /app/diary-app/.next/standalone/download/diary-app
 
 # 复制配置文件
 cp .z-ai-config /etc/.z-ai-config
 
 # 启动服务
-node node_modules/next/dist/bin/next start -p 3000
+node server.js
