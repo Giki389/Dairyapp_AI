@@ -93,6 +93,30 @@ npx prisma db push
 
 数据文件位置请参考 `DEPLOYMENT.md` 部署文档。
 
+## 极空间NAS部署方案：
+
+1) 修改 `.env` 文件中的数据库路径：
+
+```env
+DATABASE_URL="file:/你的NAS路径/diary.db"
+
+```
+2) 在根目录下创建 run.sh
+
+```
+cd /app/diary-app
+
+# 复制配置文件
+cp .z-ai-config /etc/.z-ai-config
+
+# 启动服务
+npm run start
+```
+3）修改NAS 文件路径：代码文件夹地址；装载路径: /etc/.z-ai.config
+5) 修改NAS docker 启动命令：
+'sh' '/app/diary-app/run.sh'
+
+
 ### 备份数据
 
 由于日记数据存储在 SQLite 文件中，你可以直接复制数据库文件进行备份：
